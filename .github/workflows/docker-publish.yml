@@ -2,11 +2,11 @@ name: Build e Publish Docker Image
 
 on:
   push:
-    branches: [ "main" ]  # Dispara toda vez que você der push na main
+    branches: [ "main" ]
 
 permissions:
   contents: read
-  packages: write  # Permissão para o GitHub salvar a imagem no seu perfil
+  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -30,7 +30,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }} /${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
 
