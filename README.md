@@ -20,7 +20,7 @@ Para garantir que o projeto seguiu exatamente o passo a passo solicitado pelo pr
 
 [✔] Uso de Variáveis de Ambiente (.env): Nenhuma senha ou credencial do banco ficou exposta direto no código. Tudo é puxado de forma segura e isolada.
 
-[✔] Persistência com Volumes Docker: Configuração de um volume para o banco de dados (os dados dos clientes não somem ao desligar) e de espelhamento para o código Python (atualizações no código entram na hora).
+[✔] Persistência com Volumes Docker: Configuração de um volume dedicado para o banco de dados Postgres (postgres_data), garantindo que os dados dos clientes cadastrados sejam preservados e não sumam ao desligar ou reiniciar os containers. No ambiente de teste externo, o código Python roda de forma isolada e segura diretamente a partir da imagem oficial publicada na nuvem (GitHub Packages).
 
 ---
 ## 🚀 Como Executar o Projeto
