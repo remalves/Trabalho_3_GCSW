@@ -31,14 +31,12 @@ services:
   # SERVIÇO DO SISTEMA EM PYTHON (APP)
   # =========================================================
   app:
-    # Diz ao Docker para construir a imagem usando o arquivo 'Dockerfile' local
-    build: .
+    # Puxa a imagem encapsulada e independente gerada pelo GitHub Actions 
+    #(Foco em Deploy Externo)
+    image: ghcr.io/remalves/trabalho_3_gcsw:latest
     container_name: sistema_vendas  
     env_file:
       - .env
-    # Sincroniza a pasta atual com a pasta do container. Mudou o código no VS Code, vai atualizar na hora
-    volumes:
-      - .:/app
     # Regra de dependência: O Python só liga DEPOIS que o Postgres passar no teste do healthcheck
     depends_on:
       postgres:
