@@ -75,3 +75,129 @@ Quando terminar de usar e quiser desligar os serviços com segurança sem gastar
 docker compose down
 ```
 
+## 🌟 Tarefa Extra: Execução via GitHub Packages 
+Não é necessário ter o código-fonte original (`.py`) ou o `Dockerfile` na pasta. 
+Basta criar uma pasta vazia no seu computador e estruturar os **3 arquivos** abaixo:
+### 1️⃣ Criar o arquivo `docker-compose.yml`
+Crie um arquivo com este nome exato e cole o conteúdo:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_app
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ghcr.io/remalves/trabalho_3_gcsw:latest
+    container_name: sistema_vendas  
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stdin_open: true 
+    tty: true        
+    command: ["python", "-u", "main.py"]
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer
+    container_name: adminer_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+```
+### 2️⃣ Criar o arquivo .env
+Crie um arquivo chamado .env e defina as credenciais do banco:
+
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD=senha123
+    POSTGRES_DB=sistema_vendas
+
+### 3️⃣ Criar o arquivo init.sql
+Crie um arquivo chamado init.sql para garantir que as tabelas sejam estruturadas automaticamente na primeira inicialização do banco:
+
+```
+sql 
+CREATE TABLE clientes (
+    cpf VARCHAR(14) PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    data_nascimento DATE NOT NULL,
+    sexo CHAR(1),
+    salario NUMERIC(10,2)
+);
+
+CREATE TABLE cliente_emails (
+    id SERIAL PRIMARY KEY,
+    cpf VARCHAR(14)
+        REFERENCES clientes(cpf)
+        ON DELETE CASCADE,
+    email VARCHAR(100)
+);
+
+CREATE TABLE cliente_telefones (
+    id SERIAL PRIMARY KEY,
+    cpf VARCHAR(14)
+        REFERENCES clientes(cpf)
+        ON DELETE CASCADE,
+    telefone VARCHAR(20)
+);
+
+CREATE TABLE produtos (
+    codigo SERIAL PRIMARY KEY,
+    descricao VARCHAR(200),
+    peso NUMERIC(10,2),
+    preco NUMERIC(10,2),
+    desconto NUMERIC(5,2),
+    data_validade DATE,
+    estoque INTEGER DEFAULT 0
+);
+
+CREATE TABLE vendas (
+    id SERIAL PRIMARY KEY,
+    cpf_cliente VARCHAR(14)
+        REFERENCES clientes(cpf),
+    codigo_produto INTEGER
+        REFERENCES produtos(codigo),
+    quantidade INTEGER NOT NULL,
+    data_venda TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valor_total NUMERIC(10,2)
+);
+```
+## Como Executar o Teste do Zero
+1. Iniciar os Containers (Descarregando a imagem da Nuvem do GitHub):
+
+        docker compose up -d
+2. Interagir com o Sistema Python (Abrir o Menu Interativo):
+
+        docker attach sistema_vendas
+3. Painel Visual (Opcional):
+
+    Aceda a http://localhost:8080 para abrir o Adminer e gerir o banco de dados graficamente.
