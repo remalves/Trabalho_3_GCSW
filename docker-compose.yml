@@ -1,0 +1,106 @@
+# Define a versão das regras do Docker Compose. A 3.8 
+version: '3.8'
+
+services:
+  # =========================================================
+  # SERVIÇO DO BANCO DE DADOS (POSTGRESQL) 
+  # =========================================================
+  postgres:
+    # Baixa a imagem oficial do Postgres 15 em uma versão Linux ultra-leve (alpine)
+    image: postgres:15-alpine
+    
+    # Define o nome do container que aparecerá quando rodar 'docker ps'
+    container_name: postgres_app
+    
+    # O Postgres extrai automaticamente as variáveis POSTGRES_USER, 
+    # POSTGRES_PASSWORD e POSTGRES_DB diretamente dele em segredo.
+    env_file:
+      - .env
+      
+    # Abre a porta 5432 do container para a porta 5432 do computador real
+    ports:
+      - "5432:5432"
+      
+    # Configura os discos virtuais e scripts automáticos
+    volumes:
+      # Garante que os dados salvos nas tabelas não sumam quando o container desligar
+      - postgres_data:/var/lib/postgresql/data
+      # Executa o script SQL de tabelas automaticamente na primeira vez que o banco subir
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      
+    # Adiciona este container na nossa rede privada de comunicação
+    networks:
+      - app-network
+      
+    # Testará de tempos em tempos se o banco realmente já ligou
+    healthcheck:
+      # O comando 'pg_isready' pega o usuário e banco direto da memória secreta do container (O $$ evita conflitos)
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s   # Faz o teste a cada 5 segundos
+      timeout: 5s    # Tempo limite para o teste responder
+      retries: 10    # Tenta até 10 vezes antes de marcar o container como quebrado
+
+  # =========================================================
+  # SERVIÇO DO SISTEMA EM PYTHON (APP)
+  # =========================================================
+  app:
+    # Diz ao Docker para construir a imagem usando o arquivo 'Dockerfile' local
+    build: .
+    
+    # Nome do container do sistema Python
+    container_name: sistema_vendas
+    
+    # Injeta em segredo as configurações do arquivo .env dentro do Python
+    env_file:
+      - .env
+      
+    # Sincroniza a pasta atual com a pasta do container. Mudou o código no VS Code, vai atualizar na hora
+    volumes:
+      - .:/app
+      
+    # Regra de dependência: O Python só liga DEPOIS que o Postgres passar no teste do healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+        
+    # Abre o canal de digitação padrão (input) e aloca um terminal virtual interativo
+    stdin_open: true 
+    tty: true        
+    
+    # Comando executado ao ligar. O '-u' força o Python a mandar os prints em tempo real sem travar em buffer
+    command: ["python", "-u", "main.py"]
+    
+    # Conecta o app na mesma rede do banco para eles conseguirem conversar
+    networks:
+      - app-network
+
+  # =========================================================
+  # 3. GERENCIADOR VISUAL DO BANCO (ADMINER)
+  # =========================================================
+  adminer:
+    # Baixa a ferramenta visual Adminer (Acessível pelo navegador em http://localhost:8080)
+    image: adminer
+    
+    # Define o nome do container do Adminer para facilitar a identificação
+    container_name: adminer_app
+    
+    # Abre a porta 8080 do container para a porta 8080 do computador real, onde o Adminer estará disponível
+    ports:
+      - "8080:8080"
+      
+    # Regra de dependência: O Adminer só liga DEPOIS que o Postgres passar no teste do healthcheck
+    depends_on:
+      - postgres
+      
+    # Conecta o adminer na mesma rede do banco para ele conseguir se conectar ao Postgres
+    networks:
+      - app-network
+
+# =========================================================
+# CONFIGURAÇÕES GERAIS DE REDES E DISCOS GLOBAIS
+# =========================================================
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  postgres_data:
